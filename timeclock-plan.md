@@ -86,10 +86,12 @@ Common pay period lengths:
 
 ### PayPeriod sheet layout
 
-| A | B | C | D |
-|---|---|---|---|
-| Employee Name | Total Hours | Regular Hours (≤40) | Overtime Hours (>40) |
+| A | B | C | D | E | F | G | H |
+|---|---|---|---|---|---|---|---|
+| Employee Name | Total Hours | Total (h:m) | Regular Hours (≤40) | Regular (h:m) | Overtime Hours (>40) | Overtime (h:m) | Notes |
 
+Each duration appears twice: a decimal-hours column (e.g. `38.50`, for
+multiplying by wage) and a readable `Xh Ym` column (e.g. `38h 30m`).
 Row 1–2 hold the `PAY_START` / `PAY_END` config cells. Data starts at row 4.
 
 ### How the Apps Script computes hours
@@ -176,11 +178,11 @@ on a time-based trigger: Apps Script → Triggers → Add trigger →
 
 ### What the PayPeriod sheet looks like (example)
 
-| Employee Name | Total Hours | Regular Hours | Overtime Hours |
-|---|---|---|---|
-| Alex Johnson | 38.50 | 38.50 | 0.00 |
-| James Lee | 43.25 | 40.00 | 3.25 |
-| Maria Garcia | 21.00 | 21.00 | 0.00 |
+| Employee Name | Total Hours | Total (h:m) | Regular Hours | Regular (h:m) | Overtime Hours | Overtime (h:m) | Notes |
+|---|---|---|---|---|---|---|---|
+| Alex Johnson | 38.50 | 38h 30m | 38.50 | 38h 30m | 0.00 | 0h 0m | |
+| James Lee | 43.25 | 43h 15m | 40.00 | 40h 0m | 3.25 | 3h 15m | |
+| Maria Garcia | 21.00 | 21h 0m | 21.00 | 21h 0m | 0.00 | 0h 0m | |
 
 ### Edge cases handled
 
@@ -746,8 +748,8 @@ Config cells `PAY_START` / `PAY_END` in B1/B2. Summary table from row 4.
 - [ ] Add the admin row to `Employees`: ID=0, Name=`__admin__`, PIN Hash=hash
       of your chosen admin PIN (generate in browser console)
 - [ ] Add labels to `PayPeriod` rows 1–2 for `PAY_START` / `PAY_END` config
-      cells, and headers in row 3: Employee Name, Total Hours, Regular Hours,
-      Overtime Hours
+      cells, and headers in row 3: Employee Name, Total Hours, Total (h:m),
+      Regular Hours, Regular (h:m), Overtime Hours, Overtime (h:m), Notes
 - [ ] Open Apps Script from the sheet, paste `Code.gs`, deploy as web app,
       copy the deployment URL
 - [ ] Set up a time-based trigger for `updatePayPeriod` (every 30 minutes)

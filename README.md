@@ -52,7 +52,10 @@ Create a new Google Sheet with **three tabs**, named exactly:
 
 - `A1`: `PAY_START`, `B1`: first day of the current pay period (e.g. `2026-06-08`)
 - `A2`: `PAY_END`, `B2`: last day of the period (e.g. `2026-06-21`)
-- Row 3 headers: `Employee Name | Total Hours | Regular Hours | Overtime Hours | Notes`
+- Row 3 headers (8 columns): `Employee Name | Total Hours | Total (h:m) | Regular Hours | Regular (h:m) | Overtime Hours | Overtime (h:m) | Notes`
+
+  The `Hours` columns are decimal (e.g. `38.50`) for multiplying by wage;
+  the `(h:m)` columns are the same value shown readably (e.g. `38h 30m`).
 
 ### 2. Generate your admin PIN hash
 
@@ -140,7 +143,8 @@ Each employee gets a name and their own 4-digit PIN. Done.
 ## Payroll
 
 The `PayPeriod` tab refreshes every 30 minutes with each employee's total,
-regular, and overtime hours for the window in `B1`/`B2`.
+regular, and overtime time for the window in `B1`/`B2` — shown both as
+decimal hours (for wage math) and as readable `Xh Ym`.
 
 - **Overtime** is computed per 7-day workweek anchored to `PAY_START`
   (federal FLSA rule), not on the period total. If your legal workweek

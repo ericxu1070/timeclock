@@ -125,6 +125,15 @@ function fmtDate(d) {
   return Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
 }
 
+// Decimal hours -> readable "Xh Ym" (e.g. 38.5 -> "38h 30m"),
+// rounded to the nearest whole minute.
+function hoursToHM(decimalHours) {
+  var totalMin = Math.round(decimalHours * 60);
+  var h = Math.floor(totalMin / 60);
+  var m = totalMin % 60;
+  return h + "h " + m + "m";
+}
+
 // ---------------------------------------------------------------- GET_STATE
 
 function getState() {
@@ -373,16 +382,24 @@ function updatePayPeriod() {
     }
 
     var note = openIn ? "On the clock since " + fmtTimestamp(openIn) : "";
-    results.push([name2, total.toFixed(2), regular.toFixed(2), overtime.toFixed(2), note]);
+    // Columns: Name | Total Hours | Total (h:m) | Regular Hours | Regular (h:m)
+    //        | Overtime Hours | Overtime (h:m) | Notes
+    results.push([
+      name2,
+      total.toFixed(2),    hoursToHM(total),
+      regular.toFixed(2),  hoursToHM(regular),
+      overtime.toFixed(2), hoursToHM(overtime),
+      note,
+    ]);
   }
 
   results.sort(function (a, b) {
     return a[0].localeCompare(b[0]);
   });
 
-  // Clear old data rows generously, then write the fresh set.
+  // Clear old data rows generously, then write the fresh set (8 columns).
   var lastRow = summary.getLastRow();
   var clearRows = Math.max(lastRow - 3, results.length, 1);
-  summary.getRange(4, 1, clearRows, 5).clearContent();
-  if (results.length > 0) summary.getRange(4, 1, results.length, 5).setValues(results);
+  summary.getRange(4, 1, clearRows, 8).clearContent();
+  if (results.length > 0) summary.getRange(4, 1, results.length, 8).setValues(results);
 }
