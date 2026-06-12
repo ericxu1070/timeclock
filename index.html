@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Time Clock</title>
+<style>
+  :root {
+    --bg: #f4f4f6;
+    --card: #ffffff;
+    --text: #1b1b1f;
+    --muted: #86868b;
+    --line: #e8e8ec;
+    --key: #ececf1;
+    --key-press: #dededf;
+    --accent: #f97316;
+    --accent-press: #ea6a0c;
+    --accent-soft: #fff1e6;
+    --green: #22c55e;
+    --green-soft: #e8f9ee;
+    --red: #ef4444;
+    --red-soft: #fdecec;
+    --shadow: 0 1px 3px rgba(20,20,25,.05), 0 10px 30px rgba(20,20,25,.07);
+    --shadow-lg: 0 8px 16px rgba(20,20,25,.08), 0 24px 60px rgba(20,20,25,.16);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-x: hidden;
+  }
+  button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+  input { font: inherit; }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 36px 8px;
+  }
+  .brand { font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+  .brand .dot { color: var(--accent); }
+  .clock { text-align: right; }
+  .clock .time { font-size: 30px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .clock .date { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- views ---------- */
+  main { padding: 12px 36px 120px; }
+  .view-title { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin: 22px 0 4px; }
+  .view-sub { font-size: 14px; color: var(--muted); margin-bottom: 22px; }
+
+  .view-head { display: flex; align-items: center; gap: 14px; margin-top: 22px; }
+  .view-head .view-title { margin: 0; }
+  .back-btn {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--card); box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--muted);
+    transition: transform .12s ease, background .15s ease;
+  }
+  .back-btn:active { transform: scale(.92); background: var(--key); }
+
+  .grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  .emp-card {
+    background: var(--card);
+    border-radius: 22px;
+    padding: 22px 22px 20px;
+    box-shadow: var(--shadow);
+    text-align: left;
+    transition: transform .12s ease, box-shadow .15s ease;
+    border: 1.5px solid transparent;
+  }
+  .emp-card:active { transform: scale(.97); }
+  .emp-card .row1 { display: flex; align-items: center; gap: 10px; }
+  .emp-card .name { font-size: 19px; font-weight: 650; letter-spacing: -.01em; }
+  .pulse {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--green); flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,.35); }
+    50% { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
+  }
+  .emp-card .pill {
+    display: inline-block; margin-top: 14px;
+    background: var(--green-soft); color: #15803d;
+    font-size: 13px; font-weight: 600;
+    padding: 5px 12px; border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+  }
+  .emp-card.out { box-shadow: 0 1px 2px rgba(20,20,25,.04); }
+  .emp-card.out .name { color: #4a4a4f; font-weight: 550; }
+  .emp-card.out .pill { background: var(--key); color: var(--muted); }
+
+  .empty-state {
+    text-align: center; color: var(--muted);
+    padding: 70px 20px; font-size: 15px;
+  }
+  .empty-state .big { font-size: 40px; margin-bottom: 14px; }
+
+  /* ---------- floating buttons ---------- */
+  .fab {
+    position: fixed; bottom: 28px; right: 32px;
+    background: var(--accent); color: #fff;
+    font-size: 17px; font-weight: 650;
+    padding: 17px 28px; border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(249,115,22,.35);
+    transition: transform .12s ease, background .15s ease;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .fab:active { transform: scale(.94); background: var(--accent-press); }
+  .gear {
+    position: fixed; bottom: 28px; left: 32px;
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--card); color: #c2c2c8;
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+    transition: transform .12s ease;
+  }
+  .gear:active { transform: scale(.9); }
+
+  /* ---------- pin modal ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(20,20,25,.35);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s ease, background .3s ease;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .overlay.flash-ok { background: rgba(34,197,94,.30); }
+
+  .pin-card {
+    background: var(--card);
+    border-radius: 28px;
+    box-shadow: var(--shadow-lg);
+    padding: 30px 34px 34px;
+    width: 360px; max-width: calc(100vw - 40px);
+    position: relative;
+    transform: translateY(14px) scale(.97);
+    transition: transform .22s cubic-bezier(.2,.9,.3,1.2);
+  }
+  .overlay.show .pin-card { transform: none; }
+  .pin-close {
+    position: absolute; top: 16px; right: 16px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--key); color: var(--muted); font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .12s ease, background .15s ease;
+  }
+  .pin-close:active { transform: scale(.9); background: var(--key-press); }
+  .pin-name { font-size: 22px; font-weight: 700; text-align: center; letter-spacing: -.02em; padding: 0 30px;}
+  .pin-sub { font-size: 14px; color: var(--muted); text-align: center; margin-top: 5px; }
+
+  .pin-dots { display: flex; justify-content: center; gap: 16px; margin: 26px 0 24px; }
+  .pin-dots .d {
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--key); transition: background .12s ease, transform .12s ease;
+  }
+  .pin-dots .d.on { background: var(--accent); transform: scale(1.12); }
+  .pin-dots.shake { animation: shake .4s ease; }
+  .pin-dots.shake .d.on { background: var(--red); }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-9px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(4px); }
+  }
+  .pin-dots.busy .d { animation: busyPulse 1s ease-in-out infinite; background: var(--accent-soft); }
+  .pin-dots.busy .d:nth-child(2) { animation-delay: .12s; }
+  .pin-dots.busy .d:nth-child(3) { animation-delay: .24s; }
+  .pin-dots.busy .d:nth-child(4) { animation-delay: .36s; }
+  @keyframes busyPulse { 50% { background: var(--accent); } }
+
+  .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .numpad button {
+    height: 72px; border-radius: 18px;
+    background: var(--key); font-size: 26px; font-weight: 550;
+    transition: transform .1s ease, background .12s ease;
+  }
+  .numpad button:active { transform: scale(.94); background: var(--key-press); }
+  .numpad .ghost { background: transparent; font-size: 21px; color: var(--muted); }
+  .numpad .ghost:active { background: var(--key); }
+  .numpad.disabled { pointer-events: none; opacity: .45; }
+
+  .pin-result { text-align: center; padding: 14px 0 6px; display: none; }
+  .pin-result .icon {
+    width: 64px; height: 64px; border-radius: 50%; margin: 6px auto 18px;
+    background: var(--green-soft); color: var(--green);
+    display: flex; align-items: center; justify-content: center; font-size: 30px;
+  }
+  .pin-result .msg { font-size: 21px; font-weight: 700; letter-spacing: -.02em; }
+  .pin-result .when { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .pin-card.done .pin-entry { display: none; }
+  .pin-card.done .pin-result { display: block; }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: fixed; bottom: 30px; left: 50%; z-index: 100;
+    transform: translate(-50%, 80px);
+    background: #2b2b30; color: #fff;
+    font-size: 14.5px; font-weight: 550;
+    padding: 13px 22px; border-radius: 999px;
+    box-shadow: var(--shadow-lg);
+    transition: transform .25s cubic-bezier(.2,.9,.3,1.1);
+    max-width: calc(100vw - 60px); text-align: center;
+  }
+  #toast.show { transform: translate(-50%, 0); }
+
+  /* ---------- admin ---------- */
+  #admin {
+    position: fixed; inset: 0; z-index: 40;
+    background: var(--bg);
+    overflow-y: auto;
+    display: none;
+  }
+  #admin.show { display: block; }
+  .admin-wrap { max-width: 640px; margin: 0 auto; padding: 30px 24px 60px; }
+  .admin-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+  .admin-head h1 { font-size: 26px; font-weight: 750; letter-spacing: -.02em; }
+  .lock-btn {
+    background: var(--key); color: var(--text);
+    font-size: 14.5px; font-weight: 600;
+    padding: 11px 20px; border-radius: 999px;
+    transition: transform .12s ease, background .15s ease;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .lock-btn:active { transform: scale(.95); background: var(--key-press); }
+
+  .panel {
+    background: var(--card); border-radius: 22px;
+    box-shadow: var(--shadow); padding: 22px 24px; margin-bottom: 20px;
+  }
+  .panel h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .panel h2 .hint { font-weight: 450; font-size: 13px; color: var(--muted); margin-left: 8px; }
+
+  .emp-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 2px; border-bottom: 1px solid var(--line);
+  }
+  .emp-row:last-child { border-bottom: none; }
+  .emp-row .nm { flex: 1; font-size: 15.5px; font-weight: 550; }
+  .badge {
+    font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .badge.in { background: var(--green-soft); color: #15803d; }
+  .badge.outb { background: var(--key); color: var(--muted); }
+  .row-btn {
+    font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 12px;
+    background: var(--key); color: var(--muted);
+    transition: transform .12s ease, background .15s ease, color .15s ease;
+  }
+  .row-btn:active { transform: scale(.93); }
+  .row-btn.danger { color: var(--red); background: var(--red-soft); }
+  .row-btn.danger.armed { background: var(--red); color: #fff; }
+
+  .pin-edit { display: flex; gap: 8px; padding: 6px 2px 14px; align-items: center; }
+
+  .field {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 14px;
+    padding: 13px 16px; font-size: 15px; background: #fafafc;
+    outline: none; transition: border-color .15s ease, background .15s ease;
+    color: var(--text);
+  }
+  .field:focus { border-color: var(--accent); background: #fff; }
+  .field.sm { width: 110px; flex: none; text-align: center; letter-spacing: .2em; }
+  .form-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .form-row .field { flex: 1; min-width: 130px; }
+
+  .btn {
+    background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 650;
+    padding: 13px 24px; border-radius: 14px;
+    transition: transform .12s ease, background .15s ease, opacity .15s;
+  }
+  .btn:active { transform: scale(.96); background: var(--accent-press); }
+  .btn:disabled { opacity: .4; pointer-events: none; }
+  .btn.red { background: var(--red); }
+  .btn.red:active { background: #d33b3b; }
+  .btn.grey { background: var(--key); color: var(--text); }
+  .btn.grey:active { background: var(--key-press); }
+
+  .danger-panel { border: 1.5px solid var(--red-soft); }
+  .danger-panel h2 { color: var(--red); }
+  .danger-note { font-size: 13px; color: var(--muted); margin: 10px 0 14px; line-height: 1.5; }
+
+  /* ---------- boot states ---------- */
+  #boot { text-align: center; padding: 120px 30px; color: var(--muted); }
+  .spinner {
+    width: 34px; height: 34px; margin: 0 auto 20px;
+    border: 3.5px solid var(--key); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #boot .retry { margin-top: 22px; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Time<span class="dot">.</span>Clock</div>
+  <div class="clock">
+    <div class="time" id="hdr-time">--:--</div>
+    <div class="date" id="hdr-date"></div>
+  </div>
+</header>
+
+<main>
+  <div id="boot">
+    <div class="spinner" id="boot-spin"></div>
+    <div id="boot-msg">Loading…</div>
+    <button class="btn retry" id="boot-retry" hidden>Try again</button>
+  </div>
+
+  <section id="view-home" hidden>
+    <div class="view-title">On the clock</div>
+    <div class="view-sub">Tap your name to clock out</div>
+    <div class="grid" id="grid-in"></div>
+    <div class="empty-state" id="empty-in" hidden>
+      <div class="big">🌤️</div>
+      Nobody is clocked in right now
+    </div>
+  </section>
+
+  <section id="view-clockin" hidden>
+    <div class="view-head">
+      <button class="back-btn" id="btn-back">←</button>
+      <div class="view-title">Clock in</div>
+    </div>
+    <div class="view-sub" style="margin-left:60px">Tap your name to start your shift</div>
+    <div class="grid" id="grid-out"></div>
+    <div class="empty-state" id="empty-out" hidden>
+      <div class="big">✅</div>
+      Everyone is already clocked in
+    </div>
+  </section>
+</main>
+
+<button class="fab" id="btn-clockin" hidden>＋&nbsp;Clock In</button>
+<button class="gear" id="btn-admin" hidden>⚙</button>
+
+<!-- PIN modal -->
+<div class="overlay" id="pin-overlay">
+  <div class="pin-card" id="pin-card">
+    <button class="pin-close" id="pin-close">✕</button>
+    <div class="pin-entry">
+      <div class="pin-name" id="pin-name"></div>
+      <div class="pin-sub" id="pin-sub"></div>
+      <div class="pin-dots" id="pin-dots">
+        <div class="d"></div><div class="d"></div><div class="d"></div><div class="d"></div>
+      </div>
+      <div class="numpad" id="numpad">
+        <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+        <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+        <button class="ghost" data-k="clear">Clear</button>
+        <button data-k="0">0</button>
+        <button class="ghost" data-k="back">⌫</button>
+      </div>
+    </div>
+    <div class="pin-result">
+      <div class="icon">✓</div>
+      <div class="msg" id="result-msg"></div>
+      <div class="when" id="result-when"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin panel -->
+<div id="admin">
+  <div class="admin-wrap">
+    <div class="admin-head">
+      <h1>Admin</h1>
+      <button class="lock-btn" id="btn-lock">🔒&nbsp;Lock</button>
+    </div>
+
+    <div class="panel">
+      <h2>Employees</h2>
+      <div id="admin-list"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Add employee</h2>
+      <div class="form-row">
+        <input class="field" id="add-name" placeholder="Full name" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <input class="field sm" id="add-pin" placeholder="PIN" inputmode="numeric" maxlength="4" type="password">
+        <input class="field sm" id="add-pin2" placeholder="Confirm" inputmode="numeric" maxlength="4" type="password">
+        <button class="btn" id="btn-add">Add Employee</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Change admin PIN</h2>
+      <div class="form-row">
+        <input class="field sm" id="adm-pin" placeholder="New" inputmode="numeric" maxlength="4" type="password">
+        <input class="field sm" id="adm-pin2" placeholder="Confirm" inputmode="numeric" maxlength="4" type="password">
+        <button class="btn grey" id="btn-adm-pin">Update PIN</button>
+      </div>
+    </div>
+
+    <div class="panel danger-panel">
+      <h2>Purge punch history</h2>
+      <div class="danger-note">
+        Permanently deletes all punches recorded <b>before</b> the selected date.
+        Run only after payroll for past periods is finalized and exported. This cannot be undone.
+      </div>
+      <div class="form-row">
+        <input class="field" type="date" id="purge-date" style="max-width:200px">
+        <button class="btn red" id="btn-purge">Purge</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIG — loaded from a .env file next to this page at runtime
+   (see .env.example). The browser has no real env vars, so the
+   file is fetched and parsed; never put true secrets in it —
+   anything the page can fetch, a visitor can fetch too.
+   ============================================================ */
+let SCRIPT_URL = "";
+
+async function loadConfig() {
+  try {
+    const res = await fetch(".env", { cache: "no-store" });
+    if (!res.ok) return;
+    for (const line of (await res.text()).split("\n")) {
+      const t = line.trim();
+      if (!t || t.startsWith("#")) continue;
+      const i = t.indexOf("=");
+      if (i < 1) continue;
+      const key = t.slice(0, i).trim();
+      const val = t.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+      if (key === "SCRIPT_URL") SCRIPT_URL = val;
+    }
+  } catch { /* missing .env is handled by boot() */ }
+}
+
+/* ---------------- state ---------------- */
+let employees = [];          // { id, name, status, clockedInAt? }
+let adminHash = null;        // held in memory only while the panel is unlocked
+const wrongAttempts = {};    // key -> consecutive bad-PIN count
+let modalBusy = false;
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------------- crypto ---------------- */
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ---------------- api ----------------
+   POST bodies use Content-Type text/plain so the browser treats the
+   request as "simple" and skips the CORS preflight Apps Script can't answer. */
+async function api(body) {
+  const res = await fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+async function fetchState() {
+  const res = await fetch(SCRIPT_URL + "?action=GET_STATE");
+  const data = await res.json();
+  if (data.status !== "ok") throw new Error(data.error || "bad response");
+  employees = data.employees;
+}
+
+/* ---------------- header clock ---------------- */
+function tickClock() {
+  const now = new Date();
+  $("hdr-time").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  $("hdr-date").textContent = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ---------------- rendering ---------------- */
+function elapsed(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 0) return "0m";
+  const m = Math.floor(ms / 60000);
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+function render() {
+  const ins  = employees.filter(e => e.status === "IN");
+  const outs = employees.filter(e => e.status !== "IN");
+
+  $("grid-in").innerHTML = ins.map(e => `
+    <button class="emp-card" data-id="${e.id}" data-dir="OUT">
+      <div class="row1"><span class="pulse"></span><span class="name">${esc(e.name)}</span></div>
+      <span class="pill" data-since="${e.clockedInAt}">${elapsed(e.clockedInAt)}</span>
+    </button>`).join("");
+  $("empty-in").hidden = ins.length > 0;
+
+  $("grid-out").innerHTML = outs.map(e => `
+    <button class="emp-card out" data-id="${e.id}" data-dir="IN">
+      <div class="row1"><span class="name">${esc(e.name)}</span></div>
+      <span class="pill">off the clock</span>
+    </button>`).join("");
+  $("empty-out").hidden = outs.length > 0;
+
+  renderAdminList();
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+// live elapsed-time refresh
+setInterval(() => {
+  document.querySelectorAll("[data-since]").forEach(el => {
+    el.textContent = elapsed(el.dataset.since);
+  });
+}, 30000);
+
+/* ---------------- view switching ---------------- */
+function showView(name) {
+  $("view-home").hidden = name !== "home";
+  $("view-clockin").hidden = name !== "clockin";
+  $("btn-clockin").hidden = name !== "home";
+  $("btn-admin").hidden = name !== "home";
+}
+$("btn-clockin").addEventListener("click", () => showView("clockin"));
+$("btn-back").addEventListener("click", () => showView("home"));
+
+/* ---------------- toast ---------------- */
+let toastTimer;
+function toast(msg, ms = 3000) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), ms);
+}
+
+/* ---------------- PIN modal ----------------
+   Generic controller: openPin() resolves with the entered 4-digit PIN
+   each time one is completed; the caller decides success/failure. */
+const pinCtl = {
+  digits: "",
+  resolve: null,
+  open({ title, sub }) {
+    // resolve any stale waiter from a previous flow so an abandoned
+    // punch loop can never receive a PIN meant for this new one
+    if (this.resolve) { this.resolve(null); this.resolve = null; }
+    this.digits = "";
+    modalBusy = false;
+    $("pin-name").textContent = title;
+    $("pin-sub").textContent = sub;
+    $("pin-card").classList.remove("done");
+    $("numpad").classList.remove("disabled");
+    $("pin-dots").classList.remove("busy", "shake");
+    this.paint();
+    $("pin-overlay").classList.add("show");
+  },
+  close() {
+    $("pin-overlay").classList.remove("show", "flash-ok");
+    if (this.resolve) { this.resolve(null); this.resolve = null; }
+  },
+  paint() {
+    document.querySelectorAll("#pin-dots .d").forEach((d, i) =>
+      d.classList.toggle("on", i < this.digits.length));
+  },
+  setBusy(b) {
+    modalBusy = b;
+    $("numpad").classList.toggle("disabled", b);
+    $("pin-dots").classList.toggle("busy", b);
+  },
+  wrong() {
+    const dots = $("pin-dots");
+    dots.classList.add("shake");
+    setTimeout(() => {
+      dots.classList.remove("shake");
+      this.digits = "";
+      this.paint();
+    }, 420);
+  },
+  success(msg) {
+    const now = new Date();
+    $("result-msg").textContent = msg;
+    $("result-when").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    $("pin-card").classList.add("done");
+    $("pin-overlay").classList.add("flash-ok");
+    setTimeout(() => $("pin-overlay").classList.remove("flash-ok"), 350);
+    setTimeout(() => this.close(), 1500);
+  },
+  waitForPin() {
+    return new Promise(res => { this.resolve = res; });
+  },
+  feed(k) {
+    if (modalBusy) return;
+    if (k === "clear") { this.digits = ""; this.paint(); return; }
+    if (k === "back")  { this.digits = this.digits.slice(0, -1); this.paint(); return; }
+    if (this.digits.length >= 4) return;
+    this.digits += k;
+    this.paint();
+    if (this.digits.length === 4 && this.resolve) {
+      const pin = this.digits;
+      const r = this.resolve;
+      // keep resolve null until caller re-arms via waitForPin()
+      this.resolve = null;
+      r(pin);
+    }
+  },
+};
+$("numpad").addEventListener("click", e => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if (k) pinCtl.feed(k);
+});
+$("pin-close").addEventListener("click", () => pinCtl.close());
+
+/* ---------------- punch flow ---------------- */
+async function punchFlow(emp, dir) {
+  const attemptKey = "emp" + emp.id;
+  pinCtl.open({
+    title: emp.name,
+    sub: dir === "IN" ? "Clocking in" : "Clocking out",
+  });
+
+  while (true) {
+    const pin = await pinCtl.waitForPin();
+    if (pin === null) return; // cancelled
+
+    pinCtl.setBusy(true);
+    let resp;
+    try {
+      resp = await api({
+        action: "PUNCH",
+        employeeId: emp.id,
+        employeeName: emp.name,
+        punchType: dir,
+        pinHash: await hashPin(pin),
+      });
+    } catch {
+      pinCtl.setBusy(false);
+      pinCtl.close();
+      toast("No connection — punch not recorded");
+      return;
+    }
+    pinCtl.setBusy(false);
+
+    if (resp.status === "ok") {
+      wrongAttempts[attemptKey] = 0;
+      emp.status = dir;
+      if (dir === "IN") emp.clockedInAt = resp.timestamp;
+      else delete emp.clockedInAt;
+      render();
+      showView("home");
+      pinCtl.success(dir === "IN" ? `Welcome, ${firstName(emp.name)}!` : `See you, ${firstName(emp.name)}!`);
+      return;
+    }
+
+    if (resp.error === "bad_pin") {
+      wrongAttempts[attemptKey] = (wrongAttempts[attemptKey] || 0) + 1;
+      if (wrongAttempts[attemptKey] >= 3) {
+        wrongAttempts[attemptKey] = 0;
+        pinCtl.close();
+        toast("Too many attempts — see a manager");
+        return;
+      }
+      pinCtl.wrong();
+      continue;
+    }
+
+    pinCtl.close();
+    toast("Something went wrong — try again");
+    return;
+  }
+}
+
+function firstName(n) { return n.split(" ")[0]; }
+
+document.querySelector("main").addEventListener("click", e => {
+  const card = e.target.closest(".emp-card");
+  if (!card) return;
+  const emp = employees.find(x => x.id === Number(card.dataset.id));
+  if (emp) punchFlow(emp, card.dataset.dir);
+});
+
+/* ---------------- admin flow ---------------- */
+$("btn-admin").addEventListener("click", async () => {
+  pinCtl.open({ title: "Admin", sub: "Enter admin PIN" });
+  let attempts = 0;
+  while (true) {
+    const pin = await pinCtl.waitForPin();
+    if (pin === null) return;
+
+    pinCtl.setBusy(true);
+    const hash = await hashPin(pin);
+    let resp;
+    try {
+      resp = await api({ action: "VERIFY_ADMIN", adminPinHash: hash });
+    } catch {
+      pinCtl.setBusy(false);
+      pinCtl.close();
+      toast("No connection");
+      return;
+    }
+    pinCtl.setBusy(false);
+
+    if (resp.status === "ok") {
+      adminHash = hash;
+      pinCtl.close();
+      openAdmin();
+      return;
+    }
+    attempts++;
+    if (attempts >= 3) {
+      pinCtl.close();
+      toast("Too many attempts");
+      return;
+    }
+    pinCtl.wrong();
+  }
+});
+
+function openAdmin() {
+  renderAdminList();
+  $("admin").classList.add("show");
+}
+$("btn-lock").addEventListener("click", () => {
+  adminHash = null;
+  $("admin").classList.remove("show");
+  // clear any sensitive form fields
+  ["add-name","add-pin","add-pin2","adm-pin","adm-pin2"].forEach(id => $(id).value = "");
+});
+
+function renderAdminList() {
+  const list = $("admin-list");
+  if (!list) return;
+  list.innerHTML = employees.map(e => `
+    <div class="emp-row" data-id="${e.id}">
+      <span class="nm">${esc(e.name)}</span>
+      <span class="badge ${e.status === "IN" ? "in" : "outb"}">${e.status}</span>
+      <button class="row-btn" data-act="pin">PIN</button>
+      <button class="row-btn danger" data-act="del">Delete</button>
+    </div>`).join("") || `<div class="danger-note">No employees yet — add one below.</div>`;
+}
+
+$("admin-list").addEventListener("click", async e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const row = btn.closest(".emp-row");
+  const emp = employees.find(x => x.id === Number(row.dataset.id));
+  if (!emp) return;
+
+  if (btn.dataset.act === "del") {
+    if (!btn.classList.contains("armed")) {
+      btn.classList.add("armed");
+      btn.textContent = "Confirm?";
+      setTimeout(() => { btn.classList.remove("armed"); btn.textContent = "Delete"; }, 3000);
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const resp = await api({ action: "DELETE_EMPLOYEE", employeeId: emp.id, adminPinHash: adminHash });
+      if (resp.status === "ok") {
+        employees = employees.filter(x => x.id !== emp.id);
+        render();
+        toast(`${emp.name} removed`);
+      } else toast("Delete failed");
+    } catch { toast("No connection"); }
+    btn.disabled = false;
+  }
+
+  if (btn.dataset.act === "pin") {
+    // inline editor under the row
+    const existing = row.nextElementSibling;
+    if (existing && existing.classList.contains("pin-edit")) { existing.remove(); return; }
+    document.querySelectorAll(".pin-edit").forEach(el => el.remove());
+    const ed = document.createElement("div");
+    ed.className = "pin-edit";
+    ed.innerHTML = `
+      <input class="field sm" placeholder="New PIN" inputmode="numeric" maxlength="4" type="password">
+      <input class="field sm" placeholder="Confirm" inputmode="numeric" maxlength="4" type="password">
+      <button class="btn grey" style="padding:11px 18px">Save</button>`;
+    row.after(ed);
+    const [p1, p2] = ed.querySelectorAll("input");
+    ed.querySelector("button").addEventListener("click", async () => {
+      if (!/^\d{4}$/.test(p1.value)) return toast("PIN must be 4 digits");
+      if (p1.value !== p2.value) return toast("PINs don't match");
+      try {
+        const resp = await api({
+          action: "SET_EMPLOYEE_PIN",
+          employeeId: emp.id,
+          newPinHash: await hashPin(p1.value),
+          adminPinHash: adminHash,
+        });
+        if (resp.status === "ok") { toast(`PIN updated for ${firstName(emp.name)}`); ed.remove(); }
+        else toast("Update failed");
+      } catch { toast("No connection"); }
+    });
+    p1.focus();
+  }
+});
+
+/* add employee */
+$("btn-add").addEventListener("click", async () => {
+  const name = $("add-name").value.trim();
+  const pin = $("add-pin").value, pin2 = $("add-pin2").value;
+  if (!name) return toast("Enter a name");
+  if (!/^\d{4}$/.test(pin)) return toast("PIN must be 4 digits");
+  if (pin !== pin2) return toast("PINs don't match");
+
+  $("btn-add").disabled = true;
+  try {
+    const resp = await api({
+      action: "ADD_EMPLOYEE", name, pinHash: await hashPin(pin), adminPinHash: adminHash,
+    });
+    if (resp.status === "ok") {
+      employees.push(resp.employee);
+      render();
+      ["add-name","add-pin","add-pin2"].forEach(id => $(id).value = "");
+      toast(`${name} added`);
+    } else toast("Add failed");
+  } catch { toast("No connection"); }
+  $("btn-add").disabled = false;
+});
+
+/* change admin pin */
+$("btn-adm-pin").addEventListener("click", async () => {
+  const p1 = $("adm-pin").value, p2 = $("adm-pin2").value;
+  if (!/^\d{4}$/.test(p1)) return toast("PIN must be 4 digits");
+  if (p1 !== p2) return toast("PINs don't match");
+
+  $("btn-adm-pin").disabled = true;
+  try {
+    const newHash = await hashPin(p1);
+    const resp = await api({ action: "CHANGE_ADMIN_PIN", newAdminPinHash: newHash, adminPinHash: adminHash });
+    if (resp.status === "ok") {
+      adminHash = newHash;
+      ["adm-pin","adm-pin2"].forEach(id => $(id).value = "");
+      toast("Admin PIN updated");
+    } else toast("Update failed");
+  } catch { toast("No connection"); }
+  $("btn-adm-pin").disabled = false;
+});
+
+/* purge */
+$("btn-purge").addEventListener("click", async () => {
+  const btn = $("btn-purge");
+  const date = $("purge-date").value;
+  if (!date) return toast("Pick a cutoff date first");
+
+  if (!btn.dataset.armed) {
+    btn.dataset.armed = "1";
+    btn.textContent = "Tap again to confirm";
+    setTimeout(() => { delete btn.dataset.armed; btn.textContent = "Purge"; }, 4000);
+    return;
+  }
+  delete btn.dataset.armed;
+  btn.textContent = "Purging…";
+  btn.disabled = true;
+  try {
+    const resp = await api({ action: "PURGE_PUNCHES", before: date, adminPinHash: adminHash });
+    if (resp.status === "ok") toast(`Deleted ${resp.deleted} punch record${resp.deleted === 1 ? "" : "s"}`);
+    else toast("Purge failed");
+  } catch { toast("No connection"); }
+  btn.textContent = "Purge";
+  btn.disabled = false;
+});
+
+/* ---------------- boot ---------------- */
+async function boot() {
+  $("boot-spin").hidden = false;
+  $("boot-retry").hidden = true;
+  $("boot-msg").textContent = "Loading…";
+
+  await loadConfig();
+  if (!SCRIPT_URL) {
+    $("boot-spin").hidden = true;
+    $("boot-msg").innerHTML = "Setup needed: create a <b>.env</b> file next to this page<br>with <b>SCRIPT_URL=</b> your Apps Script deployment URL.<br>See <b>.env.example</b>.";
+    return;
+  }
+  try {
+    await fetchState();
+  } catch {
+    $("boot-spin").hidden = true;
+    $("boot-msg").textContent = "Couldn't reach the server.";
+    $("boot-retry").hidden = false;
+    return;
+  }
+  $("boot").hidden = true;
+  render();
+  showView("home");
+}
+$("boot-retry").addEventListener("click", boot);
+boot();
+
+/* background refresh every 5 min (skip while a modal or admin is open) */
+setInterval(async () => {
+  if ($("pin-overlay").classList.contains("show")) return;
+  if ($("admin").classList.contains("show")) return;
+  if ($("boot").hidden === false) return;
+  try { await fetchState(); render(); } catch { /* quiet — next cycle retries */ }
+}, 5 * 60 * 1000);
+
+/* nightly reload at 3am to flush stale state */
+(function scheduleReload() {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(3, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  setTimeout(() => location.reload(), next - now);
+})();
+
+/* fullscreen fallback on first tap (kiosk apps usually handle this themselves) */
+document.addEventListener("click", function once() {
+  document.removeEventListener("click", once);
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+}, { once: true });
+</script>
+</body>
+</html>
